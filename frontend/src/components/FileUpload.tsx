@@ -3,7 +3,6 @@ import { useDropzone } from 'react-dropzone';
 import { Upload, X, FileImage, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
-import api from '@/utils/api';
 import toast from 'react-hot-toast';
 
 interface UploadFile {
@@ -94,24 +93,27 @@ export default function FileUpload({ onUploadComplete }: FileUploadProps) {
     try {
       const formData = new FormData();
       files
-        .filter((f) => f.status === 'uploading')
+        .filter((f) => f.status === 'pending')
         .forEach((f) => {
           formData.append('files', f.file);
         });
 
-      const response = await api.post('/receipts/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        onUploadProgress: (progressEvent) => {
-          const progress = progressEvent.total
-            ? Math.round((progressEvent.loaded / progressEvent.total) * 100)
-            : 0;
-          setFiles((prev) =>
-            prev.map((f) =>
-              f.status === 'uploading' ? { ...f, progress } : f,
-            ),
-          );
+      const token = localStorage.getItem('auth_token');
+      const baseURL = import.meta.env.VITE_API_URL || '/api';
+      const res = await fetch(`${baseURL}/receipts/upload`, {
+        method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
+        body: formData,
       });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        throw new Error(errorData?.detail || `Upload failed (${res.status})`);
+      }
+
+      const data = await res.json();
 
       // Mark all as success
       setFiles((prev) =>
@@ -122,7 +124,7 @@ export default function FileUpload({ onUploadComplete }: FileUploadProps) {
 
       toast.success(`${files.length} receipt(s) uploaded successfully`);
 
-      const batchId = response.data?.id || response.data?.batch?.id;
+      const batchId = data?.id || data?.batch?.id;
       if (onUploadComplete && batchId) {
         onUploadComplete(batchId);
       }
