@@ -1,0 +1,33 @@
+{
+  "vendor_name": "SUPER MARKET",
+  "vendor_address": "123 Main Street, Springfield, IL 62704",
+  "receipt_number": "00012345",
+  "transaction_date": "2024-01-15",
+  "transaction_time": "14:30",
+  "currency": "USD",
+  "subtotal": 25.24,
+  "tax": 2.08,
+  "total": 27.32,
+  "payment_method": "VISA ****4582",
+  "line_items": [
+    {"name": "MILK 2%", "quantity": 1, "unit_price": 3.99, "total_price": 3.99},
+    {"name": "WHEAT BREAD", "quantity": 1, "unit_price": 2.49, "total_price": 2.49},
+    {"name": "EGGS LARGE", "quantity": 1, "unit_price": 4.99, "total_price": 4.99},
+    {"name": "ORANGE JUICE", "quantity": 1, "unit_price": 3.49, "total_price": 3.49},
+    {"name": "BANANAS", "quantity": 1, "unit_price": 1.29, "total_price": 1.29},
+    {"name": "CHICKEN BREAST", "quantity": 1, "unit_price": 8.99, "total_price": 8.99}
+  ],
+  "confidence": 0.89,
+  "raw_text": "SUPER MARKET\n123 Main Street\nSpringfield, IL 62704\n...",
+  "extraction_metadata": {
+    "processing_time_ms": 1523.4,
+    "tesseract_confidence": 91.2,
+    "field_confidences": {
+      "vendor_name": 0.95,
+      "total": 0.98,
+      "date": 0.92,
+      "line_items": 0.85
+    },
+    "warnings": []
+  }
+}

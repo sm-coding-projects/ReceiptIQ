@@ -1,0 +1,100 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-receipt_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-receipt_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-receipt_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-receipt_user} -d ${POSTGRES_DB:-receipt_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - receipt_net
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - receipt_net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://receipt_user:receipt_pass@db:5432/receipt_db}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production-use-a-real-secret-key-at-least-32-chars}
+      - ALGORITHM=${ALGORITHM:-HS256}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
+      - MAX_UPLOAD_SIZE=${MAX_UPLOAD_SIZE:-10485760}
+      - UPLOAD_DIR=${UPLOAD_DIR:-/app/uploads}
+      - ALLOWED_EXTENSIONS_STR=${ALLOWED_EXTENSIONS_STR:-jpg,jpeg,png,gif,bmp,tiff,pdf}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000,http://localhost:80,http://localhost}
+    volumes:
+      - upload_data:/app/uploads
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - receipt_net
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A celery_app worker --loglevel=info --concurrency=2
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://receipt_user:receipt_pass@db:5432/receipt_db}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production-use-a-real-secret-key-at-least-32-chars}
+      - UPLOAD_DIR=${UPLOAD_DIR:-/app/uploads}
+    volumes:
+      - upload_data:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - receipt_net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - receipt_net
+
+volumes:
+  postgres_data:
+  redis_data:
+  upload_data:
+
+networks:
+  receipt_net:
+    driver: bridge
